@@ -17,13 +17,23 @@ jobs:
     - name: Checkout repository
       uses: actions/checkout@v3
 
+    # --- Étape corrigée pour le problème précédent (Set-ExecutionPolicy) ---
+    # NOTE: Si vous avez toujours le PSSecurityException, 
+    # vous pouvez décommenter les deux lignes ci-dessous.
+    # - name: Bypass Execution Policy for this job
+    #   shell: powershell
+    #   run: Set-ExecutionPolicy Bypass -Scope Process -Force
+
     - name: Log Node.js version
       run: node --version
 
-    - name: Log available disk space
+    # --- Étape CORRIGÉE pour l'espace disque (remplace df -h) ---
+    - name: Log available disk space (Windows)
+      shell: powershell # Assure que la commande PowerShell est utilisée
       run: |
         echo "Checking available disk space:"
-        df -h
+        # Utilise l'applet de commande Get-PSDrive au lieu de l'outil Linux 'df'
+        Get-PSDrive | Where-Object { $_.Provider.Name -eq "FileSystem" } | Format-Table Name, Used, Free
 
     - name: Install dependencies
       run: npm ci
