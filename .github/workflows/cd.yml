@@ -1,0 +1,60 @@
+name: Continuous Deployment
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [ master ] 
+
+jobs:
+  build:
+    runs-on: self-hosted
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v3
+
+    - name: Build Docker image
+      run: |
+        echo "Building Docker image..."
+        docker build -t angular-app:${{ github.sha }} .
+
+    - name: Tag images for environments
+      run: |
+        docker tag angular-app:${{ github.sha }} angular-app:staging
+        docker tag angular-app:${{ github.sha }} angular-app:production
+
+  deploy-staging:
+    needs: build
+    runs-on: self-hosted
+    environment: staging
+
+    steps:
+    - name: Deploy to staging
+      run: |
+        echo "Deploying to staging environment..."
+        docker-compose up -d app-staging
+        echo "Deployment to staging completed."
+
+    - name: Verify staging deployment
+      run: |
+        echo "Verifying staging deployment..."
+        sleep 5
+        curl -s http://localhost:8080 | grep -q "conduit" && echo "✅ Application is running correctly in staging" || (echo "❌ Staging verification failed" && exit 1)
+
+  deploy-production:
+    needs: deploy-staging
+    runs-on: self-hosted
+    environment: production
+
+    steps:
+    - name: Deploy to production
+      run: |
+        echo "Deploying to production environment..."
+        docker-compose up -d app-production
+        echo "Deployment to production completed."
+
+    - name: Verify production deployment
+      run: |
+        echo "Verifying production deployment..."
+        sleep 5
+        curl -s http://localhost:80 | grep -q "conduit" && echo "✅ Application is running correctly in production" || (echo "❌ Production verification failed" && exit 1)
